@@ -1,30 +1,54 @@
-package joker
+package joker_test
 
 import (
-	"fmt"
+	. "GoPlayground/app/joker"
+	"GoPlayground/app/joker/jokerfakes"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestDoStuffWithTestServer(t *testing.T) {
-	// Start a local HTTP server
+func TestJoker_MakeJoke_HandleError(t *testing.T) {
+	const expectedResponse = `{"value"}`
+
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		assert.Equal(t, "/joke", req.URL.String())
-		rw.Write([]byte(`{"value","some_joke"}}`))
+		_, _ = rw.Write([]byte(expectedResponse))
 	}))
-	// Close the server when test finishes
 	defer server.Close()
 
-	// Use Client & URL from our local test server
-	//api := API{server.Client(), server.URL}
+	j := NewJoker(server.URL + "/joke", MyHttpClient{})
+	joke, status := j.MakeJoke()
 
-	//joker := NewJoker("https://api.chucknorris.io/jokes/random")
-	fmt.Println("SERVER URL:", server.URL)
-	joker := NewJoker(server.URL + "/joke")
-	joke, _ := joker.MakeJoke()
+	assert.Equal(t, 500, status)
+	assert.Equal(t, "", joke)
+}
 
-	assert.Equal(t, "something", joke)
-	//assert.Nil(t, err)
+func TestJoker_MakeJoke_HandleResponse(t *testing.T) {
+	const expectedResponse = "Chuck Norris fährt in England auf der rechten Seite!"
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, "/joke", req.URL.String())
+		_, _ = rw.Write([]byte(`{"value": "` + expectedResponse + `"}"`))
+	}))
+	defer server.Close()
+
+	j := NewJoker(server.URL + "/joke", MyHttpClient{})
+	joke, status := j.MakeJoke()
+
+	assert.Equal(t, 200, status)
+	assert.Equal(t, expectedResponse, joke)
+}
+
+func TestJoker_MakeJoke_HandleMockedResponse(t *testing.T) {
+	const expectedResponse = "Chuck Norris fährt in England auf der rechten Seite!"
+	const expectedHttpCode = 200
+	mock := &jokerfakes.FakeHttpClient{}
+	mock.GetReturns(expectedResponse, expectedHttpCode)
+
+	j := NewJoker("", mock)
+	joke, status := j.MakeJoke()
+
+	assert.Equal(t, 200, status)
+	assert.Equal(t, expectedResponse, joke)
 }

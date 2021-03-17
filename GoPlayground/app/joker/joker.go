@@ -5,43 +5,42 @@ import (
 	"net/http"
 )
 
-type Joker struct {
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
+type Joker interface {
+	MakeJoke() (string, int)
+}
+
+type joker struct {
 	apiUrl     string
-	httpClient httpClient
+	httpClient HttpClient
 }
 
-func (j Joker) getApiUrl() string {
-	return j.apiUrl
+func (j joker) MakeJoke() (string, int) {
+	joke, code := j.httpClient.Get(j.apiUrl)
+	return joke, code
 }
 
-func (j Joker) setApiUrl(s string) {
-	j.apiUrl = s
-}
-
-func NewJoker(apiUrl string) Joker {
-	return Joker{
+func NewJoker(apiUrl string, httpClient HttpClient) Joker {
+	return joker{
 		apiUrl,
-		MyHttpClient{},
+		httpClient,
 	}
 }
 
-func (j Joker) MakeJoke() (string, int) {
-	joke, code := j.httpClient.Get(j.apiUrl)
-	return *joke, code
-}
-
-type httpClient interface {
-	Get(url string) (response *string, code int)
+//counterfeiter:generate . HttpClient
+type HttpClient interface {
+	Get(url string) (response string, code int)
 }
 
 type MyHttpClient struct {
 }
 
-func (c MyHttpClient) Get(url string) (response *string, code int) {
+func (c MyHttpClient) Get(url string) (response string, code int) {
 	client := http.Client{}
 	resp, err := client.Get(url)
 	if err != nil {
-		return nil, 500
+		return "", 500
 	}
 	defer resp.Body.Close()
 
@@ -49,9 +48,9 @@ func (c MyHttpClient) Get(url string) (response *string, code int) {
 
 	body, err := d.Decode(resp.Body)
 	if err != nil {
-		return nil, 500
+		return "", 500
 	}
 	joke := body["value"]
 
-	return &joke, 200
+	return joke, 200
 }
