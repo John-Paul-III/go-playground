@@ -1,12 +1,17 @@
 package main
 
 import (
-	. "GoPlayground/app/printer"
+	. "GoPlayground/app/joker"
 	"fmt"
 )
 
 func main() {
-	const content = "SOME_CONTENT"
-	printer := NewPrinter("lol")
-	fmt.Println(printer.Value())
+	const url = "https://api.chucknorris.io/jokes/random"
+	joker := NewJoker(url)
+	joke, code := joker.MakeJoke()
+	if code != 200 {
+		fmt.Println(code)
+	} else {
+		fmt.Println(joke)
+	}
 }
